@@ -11,7 +11,7 @@ import uuid
 from contextlib import asynccontextmanager
 from logging import LogRecord
 from pathlib import Path
-from typing import Generator
+from typing import Generator, Any
 from tempfile import TemporaryDirectory
 
 __all__ = [
@@ -28,6 +28,7 @@ __all__ = [
     "PROJECT_DIR",
     "LLAMA_DIR",
     "LLAMA_VERSION",
+    "LLAMA_HEADER",
     "LLAMA_LIB_DIR",
     "LLAMA_LIB",
     "common_exec",
@@ -35,14 +36,16 @@ __all__ = [
     "asynccontextmanager",
     "LogRecord",
     "Path",
-    "Generator"
+    "Generator",
+    "Any"
 ]
 
-PROJECT_DIR = Path.home() / ".local" / "share" / "bianca"
+PROJECT_DIR = Path.home().resolve() / ".local" / "share" / "bianca"
 PROJECT_DIR.mkdir(parents=True, exist_ok=True)
 
 LLAMA_DIR = PROJECT_DIR / "llama"
 LLAMA_VERSION = LLAMA_DIR / ".version"
+LLAMA_HEADER = LLAMA_DIR / "include" / "llama.h"
 LLAMA_LIB_DIR = LLAMA_DIR / "lib"
 LLAMA_LIB = LLAMA_LIB_DIR / "libllama.so"
 

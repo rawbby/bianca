@@ -26,7 +26,8 @@ class ModelProfileRegistry(dict[str, ModelProfile]):
                 "context_kwargs": profile.get("context_params", {}),
                 "sampler_chain_kwargs": profile.get("sampler_chain_params", {}),
                 "sampler_kwargs": profile.get("sampler_params", {}),
-                "system_prompt": profile.get("system_prompt")
+                "system_prompt": profile.get("system_prompt"),
+                "fallback": _get_config(profile["fallback"]) if profile.get("fallback") else None
             }
 
             if profile_model in dat:

@@ -19,7 +19,8 @@ pip install git+https://github.com/rawbby/bianca.git@v0.1.0
 ```python
 import logging
 from bianca.registry import ModelProfileRegistry
-from bianca.llama_router import LlamaRouter
+from bianca.llama_router import Router
+
 
 def main():
     mpr = ModelProfileRegistry()
@@ -36,11 +37,12 @@ def main():
         }
     ]
 
-    with LlamaRouter() as router:
+    with Router() as router:
         response = "".join([it for it in router.stream_chat_completion(
             config, messages, max_tokens=1024
         )])
         logging.getLogger("example").info(response)
+
 
 if __name__ == "__main__":
     main()

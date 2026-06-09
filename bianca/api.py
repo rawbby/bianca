@@ -1,7 +1,7 @@
 from bianca.bootstrap import *
 from bianca.llama_router import *
 from bianca.registry import *
-from bianca.logging import *
+from bianca.log import *
 
 from fastapi import *
 from pathlib import Path
@@ -11,7 +11,7 @@ import hashlib
 __all__ = ["api", "serve"]
 
 mpr = ModelProfileRegistry()
-llama_router = LlamaRouter()
+llama_router = Router()
 
 api = FastAPI(
     title="Ollama Compatible API",
@@ -97,10 +97,15 @@ def _fork_config_for_request(base_config: ModelProfile, options: dict,
     if system_prompt is None:
         system_prompt = options.get("system_prompt") or options.get("system")
 
+    fallback = None
+    if base_config.fallback is not None:
+        fallback = _fork_config_for_request(base_config.fallback, options, system_prompt)
+
     return base_config.fork(
         model_path=base_config.model_path.decode(),
         sampler_kwargs=req_sampler_kwargs,
-        system_prompt=system_prompt
+        system_prompt=system_prompt,
+        fallback=fallback
     )
 
 
@@ -454,7 +459,7 @@ async def reload():
 
 def serve(host="0.0.0.0", port=11434):
     try:
-        config = mpr["creative_critique"]
+        config = mpr["gemma-4-26b-a4b"]
         messages = [
             {"role": "system", "content": "You are a helpful assistant."},
             {"role": "user", "content": "Write a short haiku about coding in C++."}

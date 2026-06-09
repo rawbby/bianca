@@ -3,7 +3,7 @@ import logging
 from bianca.bootstrap import *
 from bianca.llama_wrapper import *
 
-__all__ = ["logging_uvicorn_lifespan"]
+__all__ = ["logging", "logging_uvicorn_lifespan"]
 
 _Scalar = int | float
 _Color = str | float | tuple[_Scalar, _Scalar, _Scalar] | None
@@ -112,6 +112,8 @@ _llama_log_level = {
     4: logging.ERROR,  # LLAMA_ERROR
 }
 
+LlamaLogCallback = ctypes.CFUNCTYPE(None, ctypes.c_int, ctypes.c_char_p, ctypes.c_void_p)
+
 
 # noinspection PyUnusedLocal
 @LlamaLogCallback
@@ -127,7 +129,7 @@ def _llama_log_callback(level: int, text: bytes, user_data: ctypes.c_void_p):
 
 
 setattr(_llama_log_callback, "cont", 0)
-llama.llama_log_set(_llama_log_callback, None)
+c_llama_log_set(_llama_log_callback, None)
 
 
 @asynccontextmanager
