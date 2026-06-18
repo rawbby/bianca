@@ -11,7 +11,7 @@ A simple LLaMA router and model profile registry package for interacting with LL
 ## Installation
 
 ```bash
-pip install git+https://github.com/rawbby/bianca.git@v0.1.0
+pip install git+https://github.com/rawbby/bianca.git@v0.1.1
 ```
 
 ## Example

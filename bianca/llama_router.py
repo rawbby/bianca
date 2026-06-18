@@ -183,11 +183,18 @@ class Model:
             for msg in messages
         ]
         c_messages = self.convert_messages(encoded)
-        size = c_llama_chat_apply_template(self.template, c_messages, len(c_messages), True, None, 0)
+        # llama_model_chat_template may return raw Jinja content instead of a built-in
+        # template name; llama_chat_apply_template only supports built-in names, so fall
+        # back to None (auto-detect from model architecture) when the template string fails.
+        tmpl = self.template
+        size = c_llama_chat_apply_template(tmpl, c_messages, len(c_messages), True, None, 0)
+        if size < 0:
+            tmpl = None
+            size = c_llama_chat_apply_template(tmpl, c_messages, len(c_messages), True, None, 0)
         if size < 0:
             raise ValueError("Failed to calculate template size")
         c_buffer = ctypes.create_string_buffer(size + 1)
-        result = c_llama_chat_apply_template(self.template, c_messages, len(c_messages), True, c_buffer, size + 1)
+        result = c_llama_chat_apply_template(tmpl, c_messages, len(c_messages), True, c_buffer, size + 1)
         if result < 0:
             raise ValueError("Failed to apply chat template")
         return c_buffer.raw[:result]

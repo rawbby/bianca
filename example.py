@@ -3,9 +3,9 @@ from bianca.registry import ModelProfileRegistry
 
 if __name__ == '__main__':
     mpr = ModelProfileRegistry()
-    config = mpr["art"]
+    config = mpr["art-minion"]
 
-    with Backend(), Router() as router:
+    with Router() as router:
         messages = [
             {"role": "user", "content": "Say hello in one sentence."}
         ]

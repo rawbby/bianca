@@ -156,7 +156,9 @@ def resolve_type(c_type, opaque_pointers_tracker, deps) -> str:
     return "ctypes.c_void_p"
 
 
-def generate_bindings():
+def generate_bindings() -> str:
+    lines = []
+    _print = lambda *args, **kwargs: lines.append(" ".join(str(a) for a in args))
     python_builtins = [
         "abs", "aiter", "all", "anext", "any", "ascii", "bin", "bool",
         "breakpoint", "bytearray", "bytes", "callable", "chr", "classmethod",
@@ -244,87 +246,87 @@ def generate_bindings():
     for func_name, _, _ in functions:
         all_exports.extend([f'"c_{func_name}"', f'"{func_name}"'])
 
-    print("from bianca.bootstrap import *")
-    print()
+    _print("from bianca.bootstrap import *")
+    _print()
 
-    print("__all__ = [")
+    _print("__all__ = [")
     for exp in all_exports:
-        print(f"    {exp},")
-    print("]")
-    print()
+        _print(f"    {exp},")
+    _print("]")
+    _print()
 
-    print("llama = ctypes.CDLL(LLAMA_LIB)\n")
+    _print("llama = ctypes.CDLL(LLAMA_LIB)\n")
 
     for o_struct in sorted(opaque_structs):
-        print(f"class {o_struct}(ctypes.Structure):")
-        print("    pass")
-        print()
+        _print(f"class {o_struct}(ctypes.Structure):")
+        _print("    pass")
+        _print()
 
     for struct_name, fields in structs.items():
-        print(f"class {struct_name}(ctypes.Structure):")
-        print("    @property")
-        print(f"    def py(self) -> 'Py{struct_name}':")
-        print(f"        return Py{struct_name}(")
+        _print(f"class {struct_name}(ctypes.Structure):")
+        _print("    @property")
+        _print(f"    def py(self) -> 'Py{struct_name}':")
+        _print(f"        return Py{struct_name}(")
         for f_name, f_type in fields:
             if f_type in structs:
-                print(f"            {f_name}=self.{f_name}.py,")
+                _print(f"            {f_name}=self.{f_name}.py,")
             else:
-                print(f"            {f_name}=self.{f_name},")
-        print("        )")
-        print()
-        print("    @py.setter")
-        print(f"    def py(self, value: 'Py{struct_name}'):")
+                _print(f"            {f_name}=self.{f_name},")
+        _print("        )")
+        _print()
+        _print("    @py.setter")
+        _print(f"    def py(self, value: 'Py{struct_name}'):")
         for f_name, f_type in fields:
-            print(f"        setattr(self, \"{f_name}\", value.c.{f_name})")
-        print()
+            _print(f"        setattr(self, \"{f_name}\", value.c.{f_name})")
+        _print()
 
     for ptr in sorted(opaque_pointers):
         base_struct = ptr.replace("Pointer", "")
         if base_struct in structs:
-            print(f"{ptr} = ctypes.POINTER({base_struct})")
+            _print(f"{ptr} = ctypes.POINTER({base_struct})")
         else:
-            print(f"{ptr} = ctypes.c_void_p")
-    print()
+            _print(f"{ptr} = ctypes.c_void_p")
+    _print()
 
     for struct_name, fields in structs.items():
-        print(f"{struct_name}._fields_ = [")
+        _print(f"{struct_name}._fields_ = [")
         for f_name, f_type in fields:
-            print(f"    (\"{f_name}\", {f_type}),")
-        print("]")
-        print()
+            _print(f"    (\"{f_name}\", {f_type}),")
+        _print("]")
+        _print()
 
     for func_name, restype, args in functions:
         arg_types = [a[1] for a in args]
-        print(f"llama.{func_name}.argtypes = [{', '.join(arg_types)}]")
-        print(f"llama.{func_name}.restype = {restype}\n")
+        _print(f"llama.{func_name}.argtypes = [{', '.join(arg_types)}]")
+        _print(f"llama.{func_name}.restype = {restype}\n")
 
     for struct_name, fields in structs.items():
-        print(f"class Py{struct_name}:")
+        _print(f"class Py{struct_name}:")
         init_args = ["self"] + [f"{f_name}=None" for f_name, _ in fields]
-        print(f"    def __init__({', '.join(init_args)}):")
+        _print(f"    def __init__({', '.join(init_args)}):")
         if not fields:
-            print("        pass")
+            _print("        pass")
         for f_name, _ in fields:
-            print(f"        self.{f_name} = {f_name}")
-        print()
-        print("    @property")
-        print(f"    def c(self) -> '{struct_name}':")
-        print(f"        c_obj = {struct_name}()")
+            _print(f"        self.{f_name} = {f_name}")
+        _print()
+        _print("    @property")
+        _print(f"    def c(self) -> '{struct_name}':")
+        _print(f"        c_obj = {struct_name}()")
         for f_name, f_type in fields:
             if f_type in structs:
-                print(f"        if self.{f_name} is not None:")
-                print(f"            c_obj.{f_name} = self.{f_name}.c")
+                _print(f"        if self.{f_name} is not None:")
+                _print(f"            c_obj.{f_name} = self.{f_name}.c")
             else:
-                print(f"        if self.{f_name} is not None:")
-                print(f"            c_obj.{f_name} = self.{f_name}")
-        print("        return c_obj")
-        print()
-        print("    @c.setter")
-        print(f"    def c(self, value: '{struct_name}'):")
-        print(f"        py_obj = value.py")
+                _print(f"        if self.{f_name} is not None:")
+                _print(f"            c_obj.{f_name} = self.{f_name}")
+        _print("        return c_obj")
+        _print()
+        _print("    @c.setter")
+        _print(f"    def c(self, value: '{struct_name}'):")
+        _print(f"        py_obj = value.py")
         for f_name, _ in fields:
-            print(f"        self.{f_name} = py_obj.{f_name}")
-        print()
+            _print(f"        self.{f_name} = py_obj.{f_name}")
+        _print()
 
     defined_struct_keys = set(structs.keys())
 
@@ -340,10 +342,10 @@ def generate_bindings():
         c_res_str = get_py_type_hint(restype, False, defined_struct_keys)
 
         if c_res_str == "None":
-            print(f"def c_{func_name}({c_args_str}):")
+            _print(f"def c_{func_name}({c_args_str}):")
         else:
-            print(f"def c_{func_name}({c_args_str}) -> {c_res_str}:")
-        print(f"    return llama.{func_name}({', '.join(name for name, _ in args)})\n")
+            _print(f"def c_{func_name}({c_args_str}) -> {c_res_str}:")
+        _print(f"    return llama.{func_name}({', '.join(name for name, _ in args)})\n")
 
         args_str = []
         for arg_name, arg_type in args:
@@ -358,15 +360,19 @@ def generate_bindings():
         c_params_str = ', '.join(f"{name}.c" if ctype in structs else f"{name}" for name, ctype in args)
 
         if res_str == "None":
-            print(f"def {func_name}({args_str}):")
+            _print(f"def {func_name}({args_str}):")
         else:
-            print(f"def {func_name}({args_str}) -> {res_str}:")
+            _print(f"def {func_name}({args_str}) -> {res_str}:")
 
         if restype in structs:
-            print(f"    return c_{func_name}({c_params_str}).py")
+            _print(f"    return c_{func_name}({c_params_str}).py")
         else:
-            print(f"    return c_{func_name}({c_params_str})")
+            _print(f"    return c_{func_name}({c_params_str})")
+
+    return "\n".join(lines) + "\n"
 
 
 if __name__ == "__main__":
-    generate_bindings()
+    target = Path(__file__).parent / "llama_wrapper.py"
+    target.write_text(generate_bindings())
+    print(f"Written to {target}")
