@@ -177,37 +177,20 @@ class Model:
 
         return c_messages
 
-    def calculate_size(self, c_messages: ctypes.Array[LlamaChatMessage]):
-        return c_llama_chat_apply_template(
-            self.template, c_messages, len(c_messages), True, None, 0)
-
-    def apply_template(self, c_messages: ctypes.Array[LlamaChatMessage], c_buffer, c_size):
-        return c_llama_chat_apply_template(
-            self.template, c_messages, len(c_messages), True, c_buffer, c_size)
-
-    def convert_input(self, messages: list[dict], **kwargs) -> bytes:
-        if not hasattr(self, "_mj_env"):
-            import minijinja
-            env = minijinja.Environment()
-            env.add_template("chat_template", self.template.decode("utf-8", errors="ignore"))
-            self._mj_env = env
-
-        # Ensure we decode any bytes keys/values recursively, just in case legacy byte dicts are passed
-        # But we assume the user mostly passes strings now.
-        def _decode(obj):
-            if isinstance(obj, bytes):
-                return obj.decode("utf-8")
-            elif isinstance(obj, dict):
-                return {k: _decode(v) for k, v in obj.items()}
-            elif isinstance(obj, list):
-                return [_decode(i) for i in obj]
-            return obj
-
-        mj_messages = _decode(messages)
-
-        prompt = self._mj_env.render_template("chat_template", messages=mj_messages, add_generation_prompt=True,
-                                              **kwargs)
-        return prompt.encode("utf-8")
+    def convert_input(self, messages: list[dict]) -> bytes:
+        encoded = [
+            {k: v.encode("utf-8") if isinstance(v, str) else v for k, v in msg.items()}
+            for msg in messages
+        ]
+        c_messages = self.convert_messages(encoded)
+        size = c_llama_chat_apply_template(self.template, c_messages, len(c_messages), True, None, 0)
+        if size < 0:
+            raise ValueError("Failed to calculate template size")
+        c_buffer = ctypes.create_string_buffer(size + 1)
+        result = c_llama_chat_apply_template(self.template, c_messages, len(c_messages), True, c_buffer, size + 1)
+        if result < 0:
+            raise ValueError("Failed to apply chat template")
+        return c_buffer.raw[:result]
 
     def tokenize(self, c_buffer: bytes, max_output_tokens: int):
         max_tokens = len(c_buffer) + max_output_tokens
@@ -407,17 +390,17 @@ class Router:
             if c_llama_decode(self._context.pointer, batch) != 0:
                 break
 
-    def chat_completion(self, config: ModelProfile, messages: list[dict], max_tokens: int = 512, **kwargs) -> str:
-        return "".join(self.stream_chat_completion(config, messages, max_tokens, **kwargs))
+    def chat_completion(self, config: ModelProfile, messages: list[dict], max_tokens: int = 512) -> str:
+        return "".join(self.stream_chat_completion(config, messages, max_tokens))
 
-    def stream_chat_completion(self, config: ModelProfile, messages: list[dict], max_tokens: int = 512, **kwargs):
+    def stream_chat_completion(self, config: ModelProfile, messages: list[dict], max_tokens: int = 512):
         try:
             self.load(config)
             assert self._model, "Model failed to load"
             assert self._context, "Context failed to load"
             self._context.clear()
-    
-            prompt_bytes = self._model.convert_input(messages, **kwargs)
+
+            prompt_bytes = self._model.convert_input(messages)
     
             c_tokens, n_tokens = self._model.tokenize(prompt_bytes, max_tokens)
             self._context.decode(c_tokens, n_tokens)
@@ -429,7 +412,7 @@ class Router:
             return _gen()
         except ValueError as e:
             if str(e) == "Context exceeded" and config.fallback is not None:
-                return self.stream_chat_completion(config.fallback, messages, max_tokens, **kwargs)
+                return self.stream_chat_completion(config.fallback, messages, max_tokens)
             raise
 
     def completion(self, config: ModelProfile, prompt: str, max_tokens: int = 512) -> str:

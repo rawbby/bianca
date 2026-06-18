@@ -459,7 +459,7 @@ async def reload():
 
 def serve(host="0.0.0.0", port=11434):
     try:
-        config = mpr["gemma-4-26b-a4b"]
+        config = mpr["cpp-dev"]
         messages = [
             {"role": "system", "content": "You are a helpful assistant."},
             {"role": "user", "content": "Write a short haiku about coding in C++."}

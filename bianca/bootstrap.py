@@ -198,7 +198,8 @@ async def _setup_llama():
 
 def bootstrap():
     os.chdir(str(PROJECT_DIR))
-    asyncio.run(_setup_llama())
+    if os.environ.get("BIANCA_UPDATE_LLAMA"):
+        asyncio.run(_setup_llama())
 
 
 bootstrap()
